@@ -1,0 +1,9 @@
+# CN Preloader LK authentication policy
+
+The supplied CN Preloader is `preloader_barley_prc_commercial_wifi.bin`, SHA-256 `ace29f08428f8112714146ea23caf50c01f5cbc4bb48f10d09381bdf482cd9c5`. Its GFH/loaded mapping in the existing analysis is file offset `0xF0` to runtime address `0x201000` (runtime address = file offset + `0x200F10`). The policy implementation was imported into Ghidra and its Thumb code examined with Capstone.
+
+The Preloader has a generic `partition_load_with_auth_policy` path at `0x0022B36C`. It looks up a per-partition policy, obtains security state, and calls `seclib_image_auth` at `0x0023882C` only when the policy says image authentication is required. The policy table includes `lk` as entry index 2. `get_security_policy_state` at `0x002317A8` derives the authentication bit from the current secure-boot and lock states and that table entry. The bit extraction is visible in `0x002318D0`.
+
+In the supplied Preloader's default policy table, the `lk` row's authentication byte for `sboot_state=1`, `lock_state=3` is zero. Existing boot logs show `sboot_state=0x1`, `lock_state=0x3`, and on partition-policy calls `img_auth_required=0`. This is evidence that the generic Preloader partition loader does not request the LK signature verification under that logged state. It is not evidence that the user's current device has those exact live values.
+
+The OEM signed LK container includes `cert1` and `cert2` components. The patched artifact in this repository was generated from the OEM-provided unsigned LK container; it has no valid OEM signature for the modified bytes. Whether the current device's actual LK loading route accepts this image is `UNVERIFIED`. Android AVB being disabled does not itself prove the Preloader's image-authentication state. No signature check was bypassed or modified by this patch.
